@@ -1,35 +1,79 @@
 # TAP Portal
 
-This repo supports two deployment approaches:
+This repository includes two deployment approaches:
 
-1. Simple approach: Static Web App + built-in API + Logic App
-2. Advanced approach: Static Web App frontend + App Service API + Managed Identity
+1. Simple: Static Web Apps + built-in API + Logic App
+2. Advanced: Static Web Apps frontend + App Service API + Managed Identity
 
-## Requirements
+## Start here first
 
-Before deployment, make sure you have:
-
-1. Azure subscription access with permissions to create resources and app registrations.
-2. Entra ID tenant where Temporary Access Pass is enabled.
-3. PowerShell 7+.
-4. Azure CLI (`az`) installed and signed in.
-5. Node.js and npm installed (for frontend deployment tooling).
-6. GitHub access if you want CI/CD publishing.
-
-Recommended checks:
+1. Decide if you are doing a local/manual deployment or CI deployment.
+2. If local/manual, yes, you need the files on your machine:
+   Download ZIP from GitHub or clone the repo.
+3. Open PowerShell in the repository root.
+4. Sign in to Azure CLI and verify the correct subscription.
 
 ```powershell
-az account show
+az login
+az account show --output table
+```
+
+## Requirements checklist
+
+1. Azure subscription with permission to create resources.
+2. Entra tenant with permission to create app registrations and grant consent.
+3. Temporary Access Pass enabled in Entra Authentication Methods.
+4. PowerShell 7+.
+5. Azure CLI (`az`).
+6. Node.js and npm.
+
+Validation commands:
+
+```powershell
 az --version
 node --version
 npm --version
 ```
 
-## Step-by-step: Simple approach
+## What to do with App ID and Secret
 
-Use this if you want the quickest setup.
+Simple approach:
 
-1. Deploy infrastructure.
+1. You create an Entra app registration for SWA authentication.
+2. You get two values:
+   App ID (client ID) and Client Secret.
+3. You store those in SWA app settings as:
+   `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`.
+4. Do not put the secret in source code.
+
+Advanced approach:
+
+1. App registrations are created/updated by script.
+2. Frontend uses client ID only (in generated runtime config).
+3. Backend authenticates to Graph with Managed Identity (no client secret for Graph).
+
+## App registration settings you must enable
+
+Simple approach (manual app registration):
+
+1. Sign-in audience: Accounts in this organizational directory only.
+2. Platform: Web.
+3. Redirect URI:
+   `https://<your-simple-swa-hostname>/.auth/login/aad/callback`
+4. Create a client secret and copy it once.
+5. Keep App ID and Secret secure. Add to SWA app settings.
+
+Advanced approach (script-managed):
+
+1. Frontend app audience: single tenant.
+2. Frontend SPA redirect URI:
+   `https://<your-advanced-swa-hostname>`
+3. API app exposes scope `TapPortal.RequestTap`.
+4. Frontend gets permission to that API scope.
+
+## Step-by-step deployment: Simple
+
+1. Create resource group and deploy infrastructure.
 
 ```powershell
 az group create --name rg-tap-portal --location westeurope
@@ -40,11 +84,18 @@ az deployment group create \
   --parameters staticWebAppName=swa-tap-portal logicAppName=logic-tap-portal staticWebAppSku=Standard
 ```
 
-2. Create app registration for SWA sign-in and collect:
-  - Client ID
-  - Client Secret
+2. Create app registration in Entra with settings listed above.
+3. Save the App ID and Secret.
+4. Set SWA app settings:
 
-3. Publish app and sync runtime settings.
+```powershell
+az staticwebapp appsettings set \
+  --name swa-tap-portal \
+  --resource-group rg-tap-portal \
+  --setting-names AZURE_CLIENT_ID=<APP_ID> AZURE_CLIENT_SECRET=<APP_SECRET>
+```
+
+5. Publish app and sync backend settings:
 
 ```powershell
 .\infra\publish-swa.ps1 \
@@ -55,15 +106,9 @@ az deployment group create \
   -TenantId <TENANT_ID>
 ```
 
-4. Set SWA auth settings in Azure (client id/secret) if not already configured.
+## Step-by-step deployment: Advanced
 
-5. Test sign-in and TAP request flow.
-
-## Step-by-step: Advanced approach
-
-Use this for stronger security and cleaner separation of frontend/backend responsibilities.
-
-1. Run the automated deployment.
+1. Run full automated deployment:
 
 ```powershell
 .\infra\publish-secretless.ps1 \
@@ -71,19 +116,18 @@ Use this for stronger security and cleaner separation of frontend/backend respon
   -TenantId <TENANT_ID>
 ```
 
-2. Confirm API health endpoint:
-  - `https://<your-webapp>.azurewebsites.net/healthz`
+2. Script actions include:
+   Entra app setup, API scope setup, managed identity Graph permission, backend deploy, frontend deploy.
 
-3. Open frontend URL and test:
-  - Sign-in
-  - TAP creation
-  - Expiry/countdown behavior
+3. Validate API health:
 
-4. Apply Conditional Access in report-only first, then enforce.
+```powershell
+Invoke-WebRequest -Uri "https://<your-advanced-webapp>.azurewebsites.net/healthz" -UseBasicParsing
+```
 
-## One-command automation for teams
+## One-command deploy for teams
 
-To keep publishing simple for other folks, use [infra/publish-all.ps1](infra/publish-all.ps1).
+Use one script to deploy either approach or both:
 
 ```powershell
 .\infra\publish-all.ps1 \
@@ -91,23 +135,35 @@ To keep publishing simple for other folks, use [infra/publish-all.ps1](infra/pub
   -TenantId <TENANT_ID> \
   -DeploySimple $true \
   -DeployAdvanced $true \
-  -SimpleClientId <SWA_CLIENT_ID> \
-  -SimpleClientSecret <SWA_CLIENT_SECRET>
+  -SimpleClientId <SIMPLE_APP_ID> \
+  -SimpleClientSecret <SIMPLE_APP_SECRET>
 ```
 
-The script can deploy either approach or both in one run.
+## How to test the app (where to start)
 
-## Publish plan (simple)
+Start in this order:
 
-1. Keep `main` as the release branch.
-2. Use one script entrypoint from CI: [infra/publish-all.ps1](infra/publish-all.ps1).
-3. Store required values as pipeline secrets:
-  - `AZURE_SUBSCRIPTION_ID`
-  - `AZURE_TENANT_ID`
-  - `SWA_CLIENT_ID`
-  - `SWA_CLIENT_SECRET`
-4. Validate with smoke tests after each deployment:
-  - Frontend loads
-  - Sign-in works
-  - TAP request works
-5. Keep repository private until go-live.
+1. Open frontend URL.
+2. Sign in with a test user who is allowed to request TAP.
+3. Click Generate TAP.
+4. Confirm TAP is shown and countdown starts.
+5. Use the TAP in Security Info flow.
+6. Verify audit entries in Entra logs.
+
+Expected quick checks:
+
+1. Frontend opens without blank page.
+2. Sign-in completes successfully.
+3. API returns TAP or a clear policy error.
+4. `healthz` returns 200 for advanced approach.
+
+## Troubleshooting quick map
+
+1. Sign-in loops:
+   Check redirect URI and `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`.
+2. 401 from API:
+   Check tenant, audience, and scope configuration.
+3. TAP not generated:
+   Check TAP method enablement and Graph permissions.
+4. Frontend works but API fails:
+   Check backend app settings and deployment logs.
