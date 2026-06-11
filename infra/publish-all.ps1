@@ -5,27 +5,43 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$TenantId,
 
-  [bool]$DeployLegacy = $true,
+  [Alias('DeployLegacy')]
+  [bool]$DeploySimple = $true,
 
-  [bool]$DeploySecretless = $true,
+  [Alias('DeploySecretless')]
+  [bool]$DeployAdvanced = $true,
 
   [string]$Location = 'westeurope',
 
-  [string]$LegacyResourceGroupName = 'rg-tap-portal',
-  [string]$LegacyStaticWebAppName = 'swa-tap-portal',
-  [string]$LegacyLogicAppName = 'logic-tap-portal',
-  [string]$LegacyStaticWebAppSku = 'Standard',
-  [string]$LegacyClientId,
-  [string]$LegacyClientSecret,
+  [Alias('LegacyResourceGroupName')]
+  [string]$SimpleResourceGroupName = 'rg-tap-portal',
+  [Alias('LegacyStaticWebAppName')]
+  [string]$SimpleStaticWebAppName = 'swa-tap-portal',
+  [Alias('LegacyLogicAppName')]
+  [string]$SimpleLogicAppName = 'logic-tap-portal',
+  [Alias('LegacyStaticWebAppSku')]
+  [string]$SimpleStaticWebAppSku = 'Standard',
+  [Alias('LegacyClientId')]
+  [string]$SimpleClientId,
+  [Alias('LegacyClientSecret')]
+  [string]$SimpleClientSecret,
 
-  [string]$SecretlessResourceGroupName = 'rg-tap-portal-secretless',
-  [string]$SecretlessStaticWebAppName = 'swa-tap-portal-secretless',
-  [string]$SecretlessStaticWebAppSku = 'Free',
-  [string]$SecretlessAppServicePlanName = 'asp-tap-portal-secretless',
-  [string]$SecretlessWebAppName = 'app-tap-portal-secretless',
-  [string]$SecretlessAppInsightsName = 'appi-tap-portal-secretless',
-  [string]$SecretlessFrontendAppDisplayName = 'TAP Portal Secretless Frontend',
-  [string]$SecretlessApiAppDisplayName = 'TAP Portal Secretless API'
+  [Alias('SecretlessResourceGroupName')]
+  [string]$AdvancedResourceGroupName = 'rg-tap-portal-secretless',
+  [Alias('SecretlessStaticWebAppName')]
+  [string]$AdvancedStaticWebAppName = 'swa-tap-portal-secretless',
+  [Alias('SecretlessStaticWebAppSku')]
+  [string]$AdvancedStaticWebAppSku = 'Free',
+  [Alias('SecretlessAppServicePlanName')]
+  [string]$AdvancedAppServicePlanName = 'asp-tap-portal-secretless',
+  [Alias('SecretlessWebAppName')]
+  [string]$AdvancedWebAppName = 'app-tap-portal-secretless',
+  [Alias('SecretlessAppInsightsName')]
+  [string]$AdvancedAppInsightsName = 'appi-tap-portal-secretless',
+  [Alias('SecretlessFrontendAppDisplayName')]
+  [string]$AdvancedFrontendAppDisplayName = 'TAP Portal Advanced Frontend',
+  [Alias('SecretlessApiAppDisplayName')]
+  [string]$AdvancedApiAppDisplayName = 'TAP Portal Advanced API'
 )
 
 Set-StrictMode -Version Latest
@@ -37,57 +53,57 @@ Set-Location $repoRoot
 Write-Host "Using subscription $SubscriptionId"
 az account set --subscription $SubscriptionId | Out-Null
 
-if (-not $DeployLegacy -and -not $DeploySecretless) {
-  throw 'Nothing to deploy. Set -DeployLegacy and/or -DeploySecretless to $true.'
+if (-not $DeploySimple -and -not $DeployAdvanced) {
+  throw 'Nothing to deploy. Set -DeploySimple and/or -DeployAdvanced to $true.'
 }
 
-if ($DeployLegacy) {
+if ($DeploySimple) {
   Write-Host ''
-  Write-Host '=== Deploying LEGACY solution ===' -ForegroundColor Cyan
+  Write-Host '=== Deploying SIMPLE approach ===' -ForegroundColor Cyan
 
-  az group create --name $LegacyResourceGroupName --location $Location | Out-Null
+  az group create --name $SimpleResourceGroupName --location $Location | Out-Null
 
   az deployment group create `
     --name main `
-    --resource-group $LegacyResourceGroupName `
+    --resource-group $SimpleResourceGroupName `
     --template-file .\infra\main.bicep `
-    --parameters staticWebAppName=$LegacyStaticWebAppName logicAppName=$LegacyLogicAppName staticWebAppSku=$LegacyStaticWebAppSku `
+    --parameters staticWebAppName=$SimpleStaticWebAppName logicAppName=$SimpleLogicAppName staticWebAppSku=$SimpleStaticWebAppSku `
     --output none
 
-  if (-not $LegacyClientId -or -not $LegacyClientSecret) {
-    throw 'Legacy deployment requires -LegacyClientId and -LegacyClientSecret for SWA EasyAuth.'
+  if (-not $SimpleClientId -or -not $SimpleClientSecret) {
+    throw 'Simple approach requires -SimpleClientId and -SimpleClientSecret for SWA EasyAuth.'
   }
 
   az staticwebapp appsettings set `
-    --name $LegacyStaticWebAppName `
-    --resource-group $LegacyResourceGroupName `
-    --setting-names AZURE_CLIENT_ID=$LegacyClientId AZURE_CLIENT_SECRET=$LegacyClientSecret `
+    --name $SimpleStaticWebAppName `
+    --resource-group $SimpleResourceGroupName `
+    --setting-names AZURE_CLIENT_ID=$SimpleClientId AZURE_CLIENT_SECRET=$SimpleClientSecret `
     --output none
 
   .\infra\publish-swa.ps1 `
     -SubscriptionId $SubscriptionId `
-    -ResourceGroupName $LegacyResourceGroupName `
-    -StaticWebAppName $LegacyStaticWebAppName `
-    -LogicAppName $LegacyLogicAppName `
+    -ResourceGroupName $SimpleResourceGroupName `
+    -StaticWebAppName $SimpleStaticWebAppName `
+    -LogicAppName $SimpleLogicAppName `
     -TenantId $TenantId
 }
 
-if ($DeploySecretless) {
+if ($DeployAdvanced) {
   Write-Host ''
-  Write-Host '=== Deploying SECRETLESS solution ===' -ForegroundColor Cyan
+  Write-Host '=== Deploying ADVANCED approach ===' -ForegroundColor Cyan
 
   .\infra\publish-secretless.ps1 `
     -SubscriptionId $SubscriptionId `
     -TenantId $TenantId `
     -Location $Location `
-    -ResourceGroupName $SecretlessResourceGroupName `
-    -StaticWebAppName $SecretlessStaticWebAppName `
-    -StaticWebAppSku $SecretlessStaticWebAppSku `
-    -AppServicePlanName $SecretlessAppServicePlanName `
-    -WebAppName $SecretlessWebAppName `
-    -AppInsightsName $SecretlessAppInsightsName `
-    -FrontendAppDisplayName $SecretlessFrontendAppDisplayName `
-    -ApiAppDisplayName $SecretlessApiAppDisplayName
+    -ResourceGroupName $AdvancedResourceGroupName `
+    -StaticWebAppName $AdvancedStaticWebAppName `
+    -StaticWebAppSku $AdvancedStaticWebAppSku `
+    -AppServicePlanName $AdvancedAppServicePlanName `
+    -WebAppName $AdvancedWebAppName `
+    -AppInsightsName $AdvancedAppInsightsName `
+    -FrontendAppDisplayName $AdvancedFrontendAppDisplayName `
+    -ApiAppDisplayName $AdvancedApiAppDisplayName
 }
 
 Write-Host ''
