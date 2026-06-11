@@ -9,6 +9,18 @@ This repository includes two deployment approaches:
 
 If you are unsure, start with Simple.
 
+Quick decision flow:
+
+1. Do you need to go live quickly with the fewest components?
+   Yes: choose Simple.
+   No: go to step 2.
+2. Do you want backend-to-Graph access through managed identity (no app secret for Graph)?
+   Yes: choose Advanced.
+   No: choose Simple.
+3. Do you need stronger backend separation and independent scaling?
+   Yes: choose Advanced.
+   No: choose Simple.
+
 1. Simple option
    Best for quick setup and fewer components.
    Full guide: [README-simple.md](README-simple.md)
