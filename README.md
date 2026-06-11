@@ -96,13 +96,6 @@ Invoke-WebRequest -Uri "https://<your-webapp>.azurewebsites.net/healthz" -UseBas
 
 6. Verify Entra audit logs for TAP creation event.
 
-## Optional reference guides
-
-If needed, older split guides are still available:
-
-1. [README-simple.md](README-simple.md)
-2. [README-advanced.md](README-advanced.md)
-
 ## Troubleshooting quick map
 
 1. Sign-in loops:
