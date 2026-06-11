@@ -167,3 +167,86 @@ Expected quick checks:
    Check TAP method enablement and Graph permissions.
 4. Frontend works but API fails:
    Check backend app settings and deployment logs.
+
+## Operator runbook (add screenshots here)
+
+Use this section for non-technical operators. Follow each portal click path and add screenshots in your internal copy.
+
+1. Enable TAP in Entra
+   Portal path:
+   `Entra admin center -> Protection -> Authentication methods -> Policies -> Temporary Access Pass`
+   Screenshot placeholder:
+   `[Screenshot: TAP policy enabled and targeted users]`
+
+2. Create app registration (Simple approach only)
+   Portal path:
+   `Entra admin center -> Applications -> App registrations -> New registration`
+   Required values:
+   - Name: any friendly name (for example, TAP Portal Simple)
+   - Supported account types: Single tenant
+   - Redirect URI type: Web
+   - Redirect URI value: `https://<simple-swa-host>/.auth/login/aad/callback`
+   Screenshot placeholders:
+   `[Screenshot: New registration form filled]`
+   `[Screenshot: App overview showing Application (client) ID]`
+
+3. Create client secret (Simple approach only)
+   Portal path:
+   `Entra admin center -> Applications -> App registrations -> <your app> -> Certificates & secrets -> New client secret`
+   Required action:
+   - Copy the secret value immediately and store it in your secure vault.
+   Screenshot placeholders:
+   `[Screenshot: Client secret created]`
+   `[Screenshot: Secret copied to secure vault]`
+
+4. Configure SWA app settings (Simple approach only)
+   Portal path:
+   `Azure portal -> Static Web Apps -> <simple-swa-name> -> Environment variables`
+   Required settings:
+   - `AZURE_CLIENT_ID = <simple app id>`
+   - `AZURE_CLIENT_SECRET = <simple app secret>`
+   Screenshot placeholder:
+   `[Screenshot: SWA environment variables with AZURE_CLIENT_ID and AZURE_CLIENT_SECRET]`
+
+5. Run deployment script
+   Local path:
+   `Repository root -> infra`
+   Commands:
+   - Simple: `.\infra\publish-swa.ps1 ...`
+   - Advanced: `.\infra\publish-secretless.ps1 ...`
+   - Both: `.\infra\publish-all.ps1 ...`
+   Screenshot placeholder:
+   `[Screenshot: Terminal showing successful deployment summary]`
+
+6. Apply Conditional Access policy in report-only
+   Portal path:
+   `Entra admin center -> Protection -> Conditional Access -> Policies`
+   Required action:
+   - Create/update TAP policy in report-only first.
+   - Validate sign-in logs before enforcing.
+   Screenshot placeholders:
+   `[Screenshot: CA policy assignment (apps/users)]`
+   `[Screenshot: Grant control set to Phishing-resistant MFA]`
+   `[Screenshot: Policy state report-only]`
+
+7. Test end-to-end
+   Start here:
+   - Open frontend URL.
+   - Sign in as test user.
+   - Generate TAP.
+   - Confirm countdown and one-time display.
+   - Validate Entra audit log event.
+   Portal path for logs:
+   `Entra admin center -> Monitoring & health -> Audit logs`
+   Screenshot placeholders:
+   `[Screenshot: Successful portal sign-in]`
+   `[Screenshot: TAP generated in UI]`
+   `[Screenshot: Entra audit log entry for TAP method creation]`
+
+8. Go-live checklist
+   - Keep repository private until approval.
+   - Confirm break-glass exclusion group in CA policy.
+   - Move CA policy from report-only to enabled.
+   - Re-run smoke test after enforcement.
+   Screenshot placeholder:
+   `[Screenshot: Final CA policy enabled state]`
