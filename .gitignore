@@ -1,9 +1,5 @@
-# Local Node dependencies
-api/node_modules/
+# Node dependencies
 secretless-api/node_modules/
-
-# Azure Functions local settings
-api/local.settings.json
 
 # Generated deployment packages
 *.zip
@@ -11,3 +7,6 @@ api/local.settings.json
 # Local env files
 .env
 .env.*
+
+# Generated frontend config (contains live client IDs; re-created by deploy)
+portal-secretless/config.js
