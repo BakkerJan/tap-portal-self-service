@@ -5,6 +5,18 @@ This repository includes two deployment approaches:
 1. Simple: Static Web Apps + built-in API + Logic App
 2. Advanced: Static Web Apps frontend + App Service API + Managed Identity
 
+## Choose your option
+
+If you are unsure, start with Simple.
+
+1. Simple option
+   Best for quick setup and fewer components.
+   Full guide: [README-simple.md](README-simple.md)
+
+2. Advanced option
+   Best for stronger backend security and managed identity-based Graph access.
+   Full guide: [README-advanced.md](README-advanced.md)
+
 ## Start here first
 
 1. Decide if you are doing a local/manual deployment or CI deployment.
