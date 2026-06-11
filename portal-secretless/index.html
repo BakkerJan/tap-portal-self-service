@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temporary Access Pass Portal</title>
+  <script src="./config.js"></script>
+  <script src="./vendor/msal-browser.min.js"></script>
+  <script>
+    if (!window.msal) {
+      document.write('<script src="https://unpkg.com/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"><\\/script>');
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #0078d4;
+      --blue-dark: #005a9e;
+      --indigo: #3730a3;
+      --indigo-light: #eef2ff;
+      --teal: #0e7490;
+      --teal-light: #e0f2fe;
+      --green: #15803d;
+      --green-bg: #dcfce7;
+      --red: #b91c1c;
+      --red-bg: #fee2e2;
+      --amber: #92400e;
+      --amber-bg: #fef3c7;
+      --bg: #eef2ff;
+      --surface: #ffffff;
+      --text: #111827;
+      --text-sub: #4b5563;
+      --border: #c7d2fe;
+      --radius: 8px;
+      --shadow: 0 4px 24px rgba(67,56,202,.10), 0 1px 4px rgba(0,0,0,.06);
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(145deg, #eef2ff 0%, #f0f9ff 50%, #faf5ff 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      background: linear-gradient(135deg, #003f73 0%, #4338ca 100%);
+      color: #fff;
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; }
+    .topbar-brand svg { width: 20px; height: 20px; fill: white; flex-shrink: 0; }
+    .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: .01em; }
+    .topbar-user { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .btn-signout {
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.35);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      transition: background .15s;
+    }
+    .btn-signout:hover { background: rgba(255,255,255,.28); }
+    main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 520px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 22px 28px 18px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, #f8faff 0%, #f3f0ff 100%);
+    }
+    .card-header h1 { font-size: 18px; font-weight: 700; }
+    .card-body { padding: 28px 32px; }
+    .state { display: none; }
+    .state.active { display: block; }
+    .spinner-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 24px 0;
+      color: var(--text-sub);
+      font-size: 14px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--indigo);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .signin-box { text-align: center; padding: 8px 0 4px; }
+    .signin-icon, .error-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .signin-icon { background: var(--indigo-light); }
+    .signin-icon svg { width: 28px; height: 28px; fill: var(--indigo); }
+    .signin-box h2 { font-size: 18px; margin-bottom: 8px; }
+    .signin-box p { font-size: 14px; color: var(--text-sub); line-height: 1.6; margin-bottom: 24px; }
+    .notice {
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    .notice.info { background: var(--teal-light); color: #0c4a5e; border-left: 3px solid var(--teal); }
+    .notice.warn { background: var(--amber-bg); color: var(--amber); border-left: 3px solid #f59e0b; }
+    .notice svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+    .user-hero { text-align: center; padding: 4px 0 24px; }
+    .user-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .user-meta, .form-hint, #errorMsg { font-size: 12px; color: var(--text-sub); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background .15s, border-color .15s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #005a9e 0%, #3730a3 100%);
+      color: white;
+      width: 100%;
+    }
+    .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #004c87 0%, #312e81 100%); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--indigo);
+      border-color: var(--indigo);
+    }
+    .btn-secondary:hover { background: var(--indigo-light); }
+    .tap-result { text-align: center; }
+    .tap-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--green-bg);
+      color: var(--green);
+      border-radius: 100px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .tap-code-wrap {
+      background: var(--indigo-light);
+      border: 2px dashed var(--indigo);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .tap-label { font-size: 12px; color: var(--text-sub); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
+    #tapCode {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      color: var(--indigo);
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+    .btn-copy {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 16px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .tap-meta { font-size: 13px; color: var(--text-sub); margin-bottom: 16px; }
+    .countdown { font-size: 22px; font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
+    .countdown.urgent { color: var(--red); }
+    .tap-footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .error-icon { background: var(--red-bg); }
+    .error-icon svg { width: 24px; height: 24px; fill: var(--red); }
+    .error-box { text-align: center; }
+    .error-box h2 { font-size: 17px; margin-bottom: 8px; }
+    footer { text-align: center; padding: 16px; font-size: 12px; color: var(--text-sub); }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-brand">
+    <svg viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+    </svg>
+    <span class="topbar-title">Temporary Access Pass Portal</span>
+  </div>
+  <div class="topbar-user" id="topbarUser" style="display:none">
+    <span id="topbarName"></span>
+    <button class="btn-signout" type="button" id="signOutButton">Sign out</button>
+  </div>
+</div>
+
+<main>
+  <div class="card">
+    <div class="card-header">
+      <h1>Request a Temporary Access Pass</h1>
+    </div>
+    <div class="card-body">
+      <div class="state active" id="stateLoading">
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <span>Verifying your identity...</span>
+        </div>
+      </div>
+
+      <div class="state" id="stateSignin">
+        <div class="signin-box">
+          <div class="signin-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+            </svg>
+          </div>
+          <h2>Authentication required</h2>
+          <p>You must sign in with a <strong>phishing-resistant method</strong> to access this portal.</p>
+        </div>
+        <div class="notice info">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <span>Conditional Access will enforce your configured authentication strength during sign-in.</span>
+        </div>
+        <button class="btn btn-primary" id="signInButton" type="button">Sign in with Microsoft</button>
+      </div>
+
+      <div class="state" id="stateForm">
+        <div class="user-hero">
+          <div class="user-name" id="userDisplayName"></div>
+          <div class="user-meta">Single-use · valid 60 min</div>
+        </div>
+        <form id="tapForm">
+          <button type="submit" class="btn btn-primary" id="submitBtn">Generate Temporary Access Pass</button>
+          <p class="form-hint">The pass is shown once. Copy it immediately.</p>
+        </form>
+      </div>
+
+      <div class="state" id="stateGenerating">
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <span>Creating your Temporary Access Pass...</span>
+        </div>
+      </div>
+
+      <div class="state" id="stateTap">
+        <div class="tap-result">
+          <div class="tap-badge">TAP created successfully</div>
+          <div class="tap-code-wrap">
+            <div class="tap-label">Your Temporary Access Pass</div>
+            <div id="tapCode">--------</div>
+            <button class="btn-copy" id="copyBtn" type="button">Copy to clipboard</button>
+          </div>
+          <div class="tap-meta">
+            Expires in: <span class="countdown" id="tapCountdown">--:--</span>
+          </div>
+          <div class="tap-footer">
+            <div class="notice info" style="text-align:left;margin-bottom:16px">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              <span><strong>How to use this TAP:</strong><br>Go to <strong>aka.ms/mysecurityinfo</strong> and sign in. When prompted for a password, choose <em>Use a Temporary Access Pass</em> and enter the code above.</span>
+            </div>
+            <button class="btn btn-secondary" id="requestAnotherButton" type="button" style="width:100%">Request another TAP</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="state" id="stateError">
+        <div class="error-box">
+          <div class="error-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          </div>
+          <h2>Could not create TAP</h2>
+          <p id="errorMsg">An unexpected error occurred. Please try again.</p>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary" style="flex:1" id="retryButton" type="button">Try again</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Secretless TAP Portal · Conditional Access enforced by Microsoft Entra ID
+</footer>
+
+<script>
+  const appConfig = window.__APP_CONFIG__ || {};
+  let msalInstance = null;
+
+  const loginRequest = {
+    scopes: ['openid', 'profile', 'email', appConfig.apiScope],
+    prompt: 'select_account'
+  };
+
+  const tokenRequest = {
+    scopes: [appConfig.apiScope]
+  };
+
+  let activeAccount = null;
+  let tapExpiry = null;
+  let countdownInterval = null;
+
+  function validateConfig() {
+    const missing = [];
+    if (!appConfig.tenantId) missing.push('tenantId');
+    if (!appConfig.clientId) missing.push('clientId');
+    if (!appConfig.apiScope) missing.push('apiScope');
+    if (!appConfig.apiBaseUrl) missing.push('apiBaseUrl');
+    return missing;
+  }
+
+  function ensureMsalReady() {
+    if (!msalInstance) {
+      throw new Error('Sign-in is not ready yet. Refresh the page and try again.');
+    }
+  }
+
+  async function withTimeout(promise, ms, message) {
+    let timerId;
+    const timeout = new Promise((_, reject) => {
+      timerId = setTimeout(() => reject(new Error(message)), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      clearTimeout(timerId);
+    }
+  }
+
+  function showState(id) {
+    document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function showErrorState(message) {
+    document.getElementById('errorMsg').textContent = message;
+    showState('stateError');
+  }
+
+  function setSignedInUser(account) {
+    activeAccount = account;
+    msalInstance.setActiveAccount(account);
+    document.getElementById('userDisplayName').textContent = account.name || account.username;
+    document.getElementById('topbarName').textContent = account.name || account.username;
+    document.getElementById('topbarUser').style.display = 'flex';
+    showState('stateForm');
+  }
+
+  async function signIn() {
+    ensureMsalReady();
+    await msalInstance.loginRedirect(loginRequest);
+  }
+
+  async function signOut() {
+    ensureMsalReady();
+    await msalInstance.logoutRedirect({ account: activeAccount || undefined });
+  }
+
+  async function acquireApiToken() {
+    ensureMsalReady();
+    const account = msalInstance.getActiveAccount() || activeAccount;
+    if (!account) {
+      throw new Error('Authentication is required.');
+    }
+
+    try {
+      const result = await msalInstance.acquireTokenSilent({ ...tokenRequest, account });
+      return result.accessToken;
+    } catch (error) {
+      if (error instanceof msal.InteractionRequiredAuthError || error.errorCode === 'interaction_required') {
+        await msalInstance.acquireTokenRedirect(tokenRequest);
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  function showTap(tap, lifetimeMinutes) {
+    document.getElementById('tapCode').textContent = tap;
+    tapExpiry = Date.now() + lifetimeMinutes * 60 * 1000;
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+    }
+    countdownInterval = setInterval(updateCountdown, 1000);
+    updateCountdown();
+    showState('stateTap');
+  }
+
+  function updateCountdown() {
+    const remaining = Math.max(0, tapExpiry - Date.now());
+    const minutes = Math.floor((remaining % 3600000) / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    const countdown = document.getElementById('tapCountdown');
+    countdown.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    countdown.classList.toggle('urgent', remaining < 300000 && remaining > 0);
+    if (remaining === 0) {
+      clearInterval(countdownInterval);
+      countdown.textContent = 'EXPIRED';
+    }
+  }
+
+  document.getElementById('signInButton').addEventListener('click', signIn);
+  document.getElementById('signOutButton').addEventListener('click', signOut);
+  document.getElementById('retryButton').addEventListener('click', () => showState(activeAccount ? 'stateForm' : 'stateSignin'));
+  document.getElementById('requestAnotherButton').addEventListener('click', () => showState('stateForm'));
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    await navigator.clipboard.writeText(document.getElementById('tapCode').textContent);
+  });
+
+  document.getElementById('tapForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    showState('stateGenerating');
+
+    try {
+      const accessToken = await acquireApiToken();
+      if (!accessToken) {
+        return;
+      }
+
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/request-tap`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: '{}'
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `Server returned ${response.status}`);
+      }
+
+      showTap(payload.temporaryAccessPass, payload.lifetimeInMinutes);
+    } catch (error) {
+      const message = error.message && error.message.includes('Failed to fetch')
+        ? 'Could not reach the backend service. Check network access or contact support.'
+        : (error.message || 'Authentication or TAP creation failed.');
+      showErrorState(message);
+    }
+  });
+
+  async function init() {
+    try {
+      const missingConfig = validateConfig();
+      if (missingConfig.length > 0) {
+        showErrorState(`Missing frontend configuration: ${missingConfig.join(', ')}.`);
+        return;
+      }
+
+      if (!window.msal || !window.msal.PublicClientApplication) {
+        showErrorState('Microsoft sign-in library failed to load. Check network access and refresh.');
+        return;
+      }
+
+      const authority = `https://login.microsoftonline.com/${appConfig.tenantId}`;
+      msalInstance = new msal.PublicClientApplication({
+        auth: {
+          clientId: appConfig.clientId,
+          authority,
+          redirectUri: window.location.origin,
+          postLogoutRedirectUri: window.location.origin
+        },
+        cache: {
+          cacheLocation: 'sessionStorage'
+        }
+      });
+
+      const redirectResult = await withTimeout(
+        msalInstance.handleRedirectPromise(),
+        15000,
+        'Sign-in verification timed out. Refresh the page and try again.'
+      );
+      const account = redirectResult?.account || msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+      if (!account) {
+        showState('stateSignin');
+        return;
+      }
+
+      setSignedInUser(account);
+    } catch (error) {
+      showErrorState(error.message || 'Sign-in failed.');
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

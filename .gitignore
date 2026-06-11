@@ -1,0 +1,13 @@
+# Local Node dependencies
+api/node_modules/
+secretless-api/node_modules/
+
+# Azure Functions local settings
+api/local.settings.json
+
+# Generated deployment packages
+*.zip
+
+# Local env files
+.env
+.env.*

@@ -1,0 +1,63 @@
+{
+  "_comment": [
+    "Conditional Access policy – TAP Portal: Require Phishing-Resistant MFA",
+    "",
+    "Import via Microsoft Graph (requires ConditionalAccess.ReadWrite.All):",
+    "  POST https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies",
+    "  Body: this file (remove _comment and _placeholders sections first)",
+    "",
+    "Or create manually in Entra ID:",
+    "  https://entra.microsoft.com → Protection → Conditional Access → + New policy",
+    "",
+    "Replace ALL values marked REPLACE_WITH_* before applying."
+  ],
+  "_placeholders": {
+    "REPLACE_WITH_APP_CLIENT_ID": "Client ID of the App Registration used by Azure Static Web Apps",
+    "REPLACE_WITH_TENANT_ID":     "Your Entra ID tenant ID",
+    "REPLACE_WITH_EXCLUDE_GROUP": "(Optional) Group ID of break-glass / exclusion accounts"
+  },
+
+  "displayName": "TAP Portal – Require Phishing-Resistant MFA",
+  "state": "enabledForReportingButNotEnforced",
+
+  "conditions": {
+    "applications": {
+      "includeApplications": ["REPLACE_WITH_APP_CLIENT_ID"],
+      "excludeApplications": []
+    },
+    "users": {
+      "includeUsers": ["All"],
+      "excludeGroups": ["REPLACE_WITH_EXCLUDE_GROUP"]
+    },
+    "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+    "platforms": { "includePlatforms": ["all"] },
+    "locations": { "includeLocations": ["All"] }
+  },
+
+  "grantControls": {
+    "operator": "OR",
+    "authenticationStrength": {
+      "id": "00000000-0000-0000-0000-000000000004"
+    }
+  },
+
+  "_authStrengthNote": [
+    "ID 00000000-0000-0000-0000-000000000004 is the built-in 'Phishing-resistant MFA' strength.",
+    "It covers: Windows Hello for Business, FIDO2 security keys (YubiKey etc.),",
+    "and certificate-based authentication (CBA).",
+    "",
+    "Verify in your tenant:",
+    "  GET https://graph.microsoft.com/v1.0/policies/authenticationStrengthPolicies",
+    "Or: Entra ID → Security → Authentication methods → Authentication strengths"
+  ],
+
+  "sessionControls": {
+    "signInFrequency": {
+      "value": 4,
+      "type": "hours",
+      "isEnabled": true,
+      "authenticationType": "primaryAndSecondaryAuthentication",
+      "frequencyInterval": "timeBased"
+    }
+  }
+}

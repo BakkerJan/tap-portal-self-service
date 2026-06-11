@@ -1,0 +1,18 @@
+{
+  "name": "tap-portal-secretless-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Secretless TAP portal backend using managed identity and Microsoft Graph",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.4.1",
+    "express": "^4.21.2",
+    "jose": "^5.9.6"
+  }
+}
