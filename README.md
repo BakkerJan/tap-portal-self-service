@@ -1,33 +1,14 @@
 # TAP Portal
 
-This repository includes two deployment approaches:
+Recommended model: one automated Bicep-first deployment path.
 
-1. Simple: Static Web Apps + built-in API + Logic App
-2. Advanced: Static Web Apps frontend + App Service API + Managed Identity
+You run one script, and it handles:
 
-## Choose your option
-
-If you are unsure, start with Simple.
-
-Quick decision flow:
-
-1. Do you need to go live quickly with the fewest components?
-   Yes: choose Simple.
-   No: go to step 2.
-2. Do you want backend-to-Graph access through managed identity (no app secret for Graph)?
-   Yes: choose Advanced.
-   No: choose Simple.
-3. Do you need stronger backend separation and independent scaling?
-   Yes: choose Advanced.
-   No: choose Simple.
-
-1. Simple option
-   Best for quick setup and fewer components.
-   Full guide: [README-simple.md](README-simple.md)
-
-2. Advanced option
-   Best for stronger backend security and managed identity-based Graph access.
-   Full guide: [README-advanced.md](README-advanced.md)
+1. Azure infrastructure deployment (Bicep)
+2. Entra app registration setup
+3. API scope and consent setup
+4. Backend and frontend publishing
+5. Optional Conditional Access policy automation
 
 ## Start here first
 
@@ -40,6 +21,26 @@ Quick decision flow:
 ```powershell
 az login
 az account show --output table
+```
+
+## One command deployment
+
+Run this from the repository root:
+
+```powershell
+.\infra\deploy.ps1 \
+   -SubscriptionId <SUBSCRIPTION_ID> \
+   -TenantId <TENANT_ID>
+```
+
+Optional: include Conditional Access setup in the same run:
+
+```powershell
+.\infra\deploy.ps1 \
+   -SubscriptionId <SUBSCRIPTION_ID> \
+   -TenantId <TENANT_ID> \
+   -ApplyConditionalAccess \
+   -ConditionalAccessState reportOnly
 ```
 
 ## Requirements checklist
@@ -59,132 +60,53 @@ node --version
 npm --version
 ```
 
-## What to do with App ID and Secret
+## What this script creates and configures
 
-Simple approach:
+1. Resource group and infra components
+2. Static Web App frontend hosting
+3. App Service backend API with managed identity
+4. Entra frontend and API app registrations
+5. API scope `TapPortal.RequestTap` and frontend permission
+6. Graph permission assignment for backend managed identity
+7. Frontend runtime config (`portal-secretless/config.js`)
+8. Frontend and backend code deployment
 
-1. You create an Entra app registration for SWA authentication.
-2. You get two values:
-   App ID (client ID) and Client Secret.
-3. You store those in SWA app settings as:
-   `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`.
-4. Do not put the secret in source code.
+## App ID and secret handling
 
-Advanced approach:
+In the recommended model, app registrations are configured by script.
 
-1. App registrations are created/updated by script.
-2. Frontend uses client ID only (in generated runtime config).
-3. Backend authenticates to Graph with Managed Identity (no client secret for Graph).
+1. You do not manually create a Graph app secret for backend Graph calls.
+2. Backend uses managed identity for Graph authentication.
+3. Frontend uses client ID only, written into generated runtime config.
+4. Keep generated IDs in deployment outputs and not in hardcoded source.
 
-## App registration settings you must enable
+## Start testing (where to begin)
 
-Simple approach (manual app registration):
+After deployment completes, start in this order:
 
-1. Sign-in audience: Accounts in this organizational directory only.
-2. Platform: Web.
-3. Redirect URI:
-   `https://<your-simple-swa-hostname>/.auth/login/aad/callback`
-4. Create a client secret and copy it once.
-5. Keep App ID and Secret secure. Add to SWA app settings.
-
-Advanced approach (script-managed):
-
-1. Frontend app audience: single tenant.
-2. Frontend SPA redirect URI:
-   `https://<your-advanced-swa-hostname>`
-3. API app exposes scope `TapPortal.RequestTap`.
-4. Frontend gets permission to that API scope.
-
-## Step-by-step deployment: Simple
-
-1. Create resource group and deploy infrastructure.
-
-```powershell
-az group create --name rg-tap-portal --location westeurope
-az deployment group create \
-  --name main \
-  --resource-group rg-tap-portal \
-  --template-file .\infra\main.bicep \
-  --parameters staticWebAppName=swa-tap-portal logicAppName=logic-tap-portal staticWebAppSku=Standard
-```
-
-2. Create app registration in Entra with settings listed above.
-3. Save the App ID and Secret.
-4. Set SWA app settings:
-
-```powershell
-az staticwebapp appsettings set \
-  --name swa-tap-portal \
-  --resource-group rg-tap-portal \
-  --setting-names AZURE_CLIENT_ID=<APP_ID> AZURE_CLIENT_SECRET=<APP_SECRET>
-```
-
-5. Publish app and sync backend settings:
-
-```powershell
-.\infra\publish-swa.ps1 \
-  -SubscriptionId <SUBSCRIPTION_ID> \
-  -ResourceGroupName rg-tap-portal \
-  -StaticWebAppName swa-tap-portal \
-  -LogicAppName logic-tap-portal \
-  -TenantId <TENANT_ID>
-```
-
-## Step-by-step deployment: Advanced
-
-1. Run full automated deployment:
-
-```powershell
-.\infra\publish-secretless.ps1 \
-  -SubscriptionId <SUBSCRIPTION_ID> \
-  -TenantId <TENANT_ID>
-```
-
-2. Script actions include:
-   Entra app setup, API scope setup, managed identity Graph permission, backend deploy, frontend deploy.
-
-3. Validate API health:
-
-```powershell
-Invoke-WebRequest -Uri "https://<your-advanced-webapp>.azurewebsites.net/healthz" -UseBasicParsing
-```
-
-## One-command deploy for teams
-
-Use one script to deploy either approach or both:
-
-```powershell
-.\infra\publish-all.ps1 \
-  -SubscriptionId <SUBSCRIPTION_ID> \
-  -TenantId <TENANT_ID> \
-  -DeploySimple $true \
-  -DeployAdvanced $true \
-  -SimpleClientId <SIMPLE_APP_ID> \
-  -SimpleClientSecret <SIMPLE_APP_SECRET>
-```
-
-## How to test the app (where to start)
-
-Start in this order:
-
-1. Open frontend URL.
-2. Sign in with a test user who is allowed to request TAP.
+1. Open the frontend URL shown in deployment output.
+2. Sign in with a test user.
 3. Click Generate TAP.
-4. Confirm TAP is shown and countdown starts.
-5. Use the TAP in Security Info flow.
-6. Verify audit entries in Entra logs.
+4. Confirm TAP appears with countdown.
+5. Verify backend health endpoint:
 
-Expected quick checks:
+```powershell
+Invoke-WebRequest -Uri "https://<your-webapp>.azurewebsites.net/healthz" -UseBasicParsing
+```
 
-1. Frontend opens without blank page.
-2. Sign-in completes successfully.
-3. API returns TAP or a clear policy error.
-4. `healthz` returns 200 for advanced approach.
+6. Verify Entra audit logs for TAP creation event.
+
+## Optional reference guides
+
+If needed, older split guides are still available:
+
+1. [README-simple.md](README-simple.md)
+2. [README-advanced.md](README-advanced.md)
 
 ## Troubleshooting quick map
 
 1. Sign-in loops:
-   Check redirect URI and `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`.
+   Re-run `infra/deploy.ps1` and verify generated frontend app registration and redirect URI.
 2. 401 from API:
    Check tenant, audience, and scope configuration.
 3. TAP not generated:
@@ -202,47 +124,35 @@ Use this section for non-technical operators. Follow each portal click path and 
    Screenshot placeholder:
    `[Screenshot: TAP policy enabled and targeted users]`
 
-2. Create app registration (Simple approach only)
+2. Verify app registrations were created by script
    Portal path:
-   `Entra admin center -> Applications -> App registrations -> New registration`
-   Required values:
-   - Name: any friendly name (for example, TAP Portal Simple)
-   - Supported account types: Single tenant
-   - Redirect URI type: Web
-   - Redirect URI value: `https://<simple-swa-host>/.auth/login/aad/callback`
+   `Entra admin center -> Applications -> App registrations`
+   Required checks:
+   - Frontend app exists
+   - API app exists
+   - Frontend redirect URI points to deployed SWA host
    Screenshot placeholders:
-   `[Screenshot: New registration form filled]`
-   `[Screenshot: App overview showing Application (client) ID]`
+   `[Screenshot: Frontend app registration overview]`
+   `[Screenshot: API app registration overview]`
 
-3. Create client secret (Simple approach only)
+3. Verify backend managed identity permissions
    Portal path:
-   `Entra admin center -> Applications -> App registrations -> <your app> -> Certificates & secrets -> New client secret`
-   Required action:
-   - Copy the secret value immediately and store it in your secure vault.
-   Screenshot placeholders:
-   `[Screenshot: Client secret created]`
-   `[Screenshot: Secret copied to secure vault]`
-
-4. Configure SWA app settings (Simple approach only)
-   Portal path:
-   `Azure portal -> Static Web Apps -> <simple-swa-name> -> Environment variables`
-   Required settings:
-   - `AZURE_CLIENT_ID = <simple app id>`
-   - `AZURE_CLIENT_SECRET = <simple app secret>`
+   `Azure portal -> App Services -> <webapp-name> -> Identity`
+   Required checks:
+   - System-assigned managed identity is enabled
+   - Graph permission grant script has been applied
    Screenshot placeholder:
-   `[Screenshot: SWA environment variables with AZURE_CLIENT_ID and AZURE_CLIENT_SECRET]`
+   `[Screenshot: Web App identity enabled]`
 
-5. Run deployment script
+4. Run deployment script
    Local path:
    `Repository root -> infra`
-   Commands:
-   - Simple: `.\infra\publish-swa.ps1 ...`
-   - Advanced: `.\infra\publish-secretless.ps1 ...`
-   - Both: `.\infra\publish-all.ps1 ...`
+   Command:
+   - `.\infra\deploy.ps1 ...`
    Screenshot placeholder:
    `[Screenshot: Terminal showing successful deployment summary]`
 
-6. Apply Conditional Access policy in report-only
+5. Apply Conditional Access policy in report-only
    Portal path:
    `Entra admin center -> Protection -> Conditional Access -> Policies`
    Required action:
@@ -253,7 +163,7 @@ Use this section for non-technical operators. Follow each portal click path and 
    `[Screenshot: Grant control set to Phishing-resistant MFA]`
    `[Screenshot: Policy state report-only]`
 
-7. Test end-to-end
+6. Test end-to-end
    Start here:
    - Open frontend URL.
    - Sign in as test user.
@@ -267,7 +177,7 @@ Use this section for non-technical operators. Follow each portal click path and 
    `[Screenshot: TAP generated in UI]`
    `[Screenshot: Entra audit log entry for TAP method creation]`
 
-8. Go-live checklist
+7. Go-live checklist
    - Keep repository private until approval.
    - Confirm break-glass exclusion group in CA policy.
    - Move CA policy from report-only to enabled.
