@@ -56,6 +56,11 @@ Set-Location $repoRoot
 Write-Host "Using subscription $SubscriptionId"
 az account set --subscription $SubscriptionId | Out-Null
 
+Write-Host 'Registering required resource providers'
+az provider register --namespace microsoft.operationalinsights --wait | Out-Null
+az provider register --namespace microsoft.web --wait | Out-Null
+az provider register --namespace microsoft.resources --wait | Out-Null
+
 Write-Host 'Ensuring resource group exists'
 az group create --name $ResourceGroupName --location $Location | Out-Null
 
