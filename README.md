@@ -802,6 +802,54 @@ Or manually grant admin consent in Entra admin center: **App registrations → T
 
 ---
 
+### Portal shows "Could not reach the backend service"
+
+**Cause:** Browser preflight (`OPTIONS`) is blocked, usually because App Service platform CORS is enabled and overrides API CORS headers.
+
+**Fix:**
+1. Remove App Service-level CORS origins so the API middleware handles CORS.
+2. Keep `ALLOWED_ORIGIN` set to the Static Web App origin.
+3. Re-deploy backend code.
+
+```powershell
+az webapp cors show `
+  --name           app-tap-portal-secretless `
+  --resource-group rg-tap-portal-secretless
+
+az webapp cors remove `
+  --name           app-tap-portal-secretless `
+  --resource-group rg-tap-portal-secretless `
+  --allowed-origins "https://<YOUR_SWA_HOSTNAME>"
+```
+
+Then verify preflight includes all required headers:
+
+```powershell
+Invoke-WebRequest `
+  -Uri "https://app-tap-portal-secretless.azurewebsites.net/api/request-tap" `
+  -Method OPTIONS `
+  -Headers @{
+    Origin = "https://<YOUR_SWA_HOSTNAME>"
+    'Access-Control-Request-Method' = 'POST'
+    'Access-Control-Request-Headers' = 'Authorization,Content-Type'
+  }
+```
+
+Expected response headers include:
+- `Access-Control-Allow-Origin`
+- `Access-Control-Allow-Methods: POST,OPTIONS`
+- `Access-Control-Allow-Headers: Authorization,Content-Type`
+
+---
+
+### I do not see a consent screen
+
+**Expected behavior:** In the recommended deployment path, the deployment script grants **admin consent** for the frontend app. End users therefore typically do **not** see a consent prompt.
+
+If you expect phishing-resistant MFA prompts but do not see them, validate Conditional Access policy scope/state in [Step 7 — Apply Conditional Access](#step-7--apply-conditional-access).
+
+---
+
 ### TAP creation returns 404 from Graph
 
 **Cause:** TAP authentication method is not enabled, or the user is not in the TAP method target group.

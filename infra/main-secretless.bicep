@@ -71,12 +71,6 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       http20Enabled: true
-      cors: {
-        allowedOrigins: [
-          'https://${staticWebApp.properties.defaultHostname}'
-        ]
-        supportCredentials: false
-      }
       appSettings: [
         {
           name: 'WEBSITES_PORT'

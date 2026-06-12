@@ -70,11 +70,37 @@ az webapp config appsettings set `
     REQUIRED_SCOPE=TapPortal.RequestTap `
     ALLOWED_ORIGIN=$frontendOrigin | Out-Null
 
+Write-Host 'Disabling App Service platform CORS (API handles CORS headers)'
+$existingCorsOrigins = az webapp cors show `
+  --resource-group $ResourceGroupName `
+  --name $WebAppName `
+  --query allowedOrigins -o tsv
+
+if ($existingCorsOrigins) {
+  $corsOrigins = @($existingCorsOrigins -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($corsOrigins.Count -gt 0) {
+    az webapp cors remove `
+      --resource-group $ResourceGroupName `
+      --name $WebAppName `
+      --allowed-origins @corsOrigins | Out-Null
+  }
+}
+
 Write-Host 'Granting backend managed identity Microsoft Graph permissions'
 .\infra\grant-graph-permissions.ps1 -ManagedIdentityPrincipalId $webAppPrincipalId -TenantId $TenantId
 
+Write-Host 'Preparing frontend deployment package'
+$frontendSourcePath = Join-Path $repoRoot 'portal-secretless'
+$frontendDeployPath = Join-Path $repoRoot 'portal-secretless.deploy'
+
+if (Test-Path $frontendDeployPath) {
+  Remove-Item -Path $frontendDeployPath -Recurse -Force
+}
+
+Copy-Item -Path $frontendSourcePath -Destination $frontendDeployPath -Recurse
+
 Write-Host 'Generating frontend runtime configuration'
-$configPath = Join-Path $repoRoot 'portal-secretless\config.js'
+$configPath = Join-Path $frontendDeployPath 'config.js'
 $configContent = @"
 window.__APP_CONFIG__ = {
   tenantId: '$TenantId',
@@ -84,6 +110,11 @@ window.__APP_CONFIG__ = {
 };
 "@
 Set-Content -Path $configPath -Value $configContent -Encoding UTF8
+
+$swaConfigPath = Join-Path $frontendDeployPath 'staticwebapp.config.json'
+$swaConfigContent = Get-Content -Path $swaConfigPath -Raw
+$swaConfigContent = $swaConfigContent.Replace('__BACKEND_BASE_URL__', $backendBaseUrl)
+Set-Content -Path $swaConfigPath -Value $swaConfigContent -Encoding UTF8
 
 Write-Host 'Installing backend dependencies'
 Push-Location (Join-Path $repoRoot 'secretless-api')
@@ -117,9 +148,13 @@ if (-not $deploymentToken) {
 }
 
 Write-Host 'Deploying secretless frontend'
-npx @azure/static-web-apps-cli deploy .\portal-secretless `
+npx @azure/static-web-apps-cli deploy $frontendDeployPath `
   --deployment-token $deploymentToken `
   --env production
+
+if (Test-Path $frontendDeployPath) {
+  Remove-Item -Path $frontendDeployPath -Recurse -Force
+}
 
 Write-Host ''
 Write-Host 'Secretless TAP portal deployed.' -ForegroundColor Green
