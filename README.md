@@ -161,15 +161,15 @@ sequenceDiagram
     participant MI as Managed Identity
     participant Graph as Microsoft Graph
 
-    User->>API: POST /api/tap  (Authorization: Bearer <access_token>)
-    API->>API: Validate JWT (issuer, audience, scope, tenant)
+    User->>API: POST /api/tap with Bearer token
+    API->>API: Validate JWT issuer, audience, scope, tenant
     API->>API: Extract oid from token payload
-    API->>MI: getToken("https://graph.microsoft.com/.default")
+    API->>MI: getToken for graph.microsoft.com
     MI-->>API: Short-lived Graph access token
-    API->>Graph: POST /users/{oid}/authentication/temporaryAccessPassMethods
-    Graph-->>API: 201 Created { temporaryAccessPass, lifetimeInMinutes }
-    API-->>User: 200 OK { tap: "...", expiresInMinutes: 60 }
-    User->>User: Display TAP with countdown timer (one-time view)
+    API->>Graph: POST /users/OID/authentication/temporaryAccessPassMethods
+    Graph-->>API: 201 Created with temporaryAccessPass value
+    API-->>User: 200 OK with TAP value and expiry
+    User->>User: Display TAP with countdown timer, one-time view
 ```
 
 **Key points:**
