@@ -115,7 +115,6 @@ if ($ApplyConditionalAccess) {
         }
         clientAppTypes = @('browser', 'mobileAppsAndDesktopClients')
         platforms = @{ includePlatforms = @('all') }
-        locations = @{ includeLocations = @('All') }
       }
       grantControls = @{
         operator = 'OR'

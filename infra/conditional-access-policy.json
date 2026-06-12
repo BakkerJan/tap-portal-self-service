@@ -30,8 +30,7 @@
       "excludeGroups": ["REPLACE_WITH_EXCLUDE_GROUP"]
     },
     "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
-    "platforms": { "includePlatforms": ["all"] },
-    "locations": { "includeLocations": ["All"] }
+    "platforms": { "includePlatforms": ["all"] }
   },
 
   "grantControls": {
