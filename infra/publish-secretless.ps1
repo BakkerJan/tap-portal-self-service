@@ -21,11 +21,34 @@ param(
 
   [string]$FrontendAppDisplayName = 'TAP Portal Secretless Frontend',
 
-  [string]$ApiAppDisplayName = 'TAP Portal Secretless API'
+  [string]$ApiAppDisplayName = 'TAP Portal Secretless API',
+
+  [string]$FrontendCustomDomain = '',
+
+  [string]$ApiBaseUrl = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Normalize-Origin {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Value
+  )
+
+  $candidate = $Value.Trim()
+  if (-not $candidate) {
+    return ''
+  }
+
+  if (-not ($candidate -match '^https?://')) {
+    $candidate = "https://$candidate"
+  }
+
+  $uri = [Uri]$candidate
+  return $uri.GetLeftPart([System.UriPartial]::Authority)
+}
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
@@ -49,12 +72,21 @@ $frontendHostname = $outputs.staticWebAppHostname.value
 $backendHostname = $outputs.webAppHostname.value
 $webAppPrincipalId = $outputs.webAppPrincipalId.value
 $frontendOrigin = "https://$frontendHostname"
-$backendBaseUrl = "https://$backendHostname"
+$backendBaseUrl = if ($ApiBaseUrl) { Normalize-Origin -Value $ApiBaseUrl } else { "https://$backendHostname" }
+$frontendOrigins = @($frontendOrigin)
+if ($FrontendCustomDomain) {
+  $frontendCustomOrigin = Normalize-Origin -Value $FrontendCustomDomain
+  if ($frontendOrigins -notcontains $frontendCustomOrigin) {
+    $frontendOrigins += $frontendCustomOrigin
+  }
+}
+$allowedOriginSetting = ($frontendOrigins -join ',')
 
 Write-Host 'Configuring Microsoft Entra applications'
 $entraJson = .\infra\setup-secretless-entra.ps1 `
   -TenantId $TenantId `
   -FrontendHostname $frontendHostname `
+  -AdditionalFrontendRedirectUris $frontendOrigins `
   -FrontendAppDisplayName $FrontendAppDisplayName `
   -ApiAppDisplayName $ApiAppDisplayName
 
@@ -68,7 +100,7 @@ az webapp config appsettings set `
     EXPECTED_TENANT_ID=$TenantId `
     EXPECTED_TOKEN_AUDIENCES="$($entra.apiAppId),$($entra.apiAudience)" `
     REQUIRED_SCOPE=TapPortal.RequestTap `
-    ALLOWED_ORIGIN=$frontendOrigin | Out-Null
+    ALLOWED_ORIGIN=$allowedOriginSetting | Out-Null
 
 Write-Host 'Disabling App Service platform CORS (API handles CORS headers)'
 $existingCorsOrigins = az webapp cors show `

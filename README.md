@@ -354,6 +354,8 @@ The `infra/deploy.ps1` script is the single entry point that orchestrates the en
 | `-AppInsightsName` | `appi-tap-portal-secretless` | Application Insights name |
 | `-FrontendAppDisplayName` | `TAP Portal Frontend` | Entra app registration display name for frontend |
 | `-ApiAppDisplayName` | `TAP Portal API` | Entra app registration display name for API |
+| `-FrontendCustomDomain` | *(optional)* | Custom frontend domain (for example `tap.contoso.com`). Added to API CORS allowlist and Entra SPA redirect URIs. |
+| `-ApiBaseUrl` | *(optional)* | Custom backend API base URL (for example `https://api.contoso.com`). Used in frontend runtime config and CSP. |
 | `-ApplyConditionalAccess` | *(switch, off by default)* | Create or update the Conditional Access policy |
 | `-ConditionalAccessState` | `reportOnly` | `reportOnly` or `enabled` |
 | `-ConditionalAccessPolicyName` | `TAP Portal - Require Phishing-Resistant MFA` | Display name of the CA policy |

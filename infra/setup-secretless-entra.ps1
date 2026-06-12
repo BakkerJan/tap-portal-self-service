@@ -5,6 +5,9 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$FrontendHostname,
 
+  [Parameter(Mandatory = $false)]
+  [string[]]$AdditionalFrontendRedirectUris = @(),
+
   [Parameter(Mandatory = $true)]
   [string]$FrontendAppDisplayName,
 
@@ -56,13 +59,13 @@ function Get-OrCreateApp {
     return $existing
   }
 
-  $args = @(
+  $createAppArgs = @(
     'ad', 'app', 'create',
     '--display-name', $DisplayName,
     '--sign-in-audience', 'AzureADMyOrg'
   )
 
-  $created = az @args -o json | ConvertFrom-Json
+  $created = az @createAppArgs -o json | ConvertFrom-Json
 
   if ($SpaRedirectUris.Count -gt 0) {
     $spaPatch = @{ spa = @{ redirectUris = $SpaRedirectUris } } | ConvertTo-Json -Depth 5 -Compress
@@ -75,7 +78,9 @@ function Get-OrCreateApp {
 
 Write-Host 'Ensuring frontend SPA app registration exists'
 $frontendRedirectUri = "https://$FrontendHostname"
-$frontendApp = Get-OrCreateApp -DisplayName $FrontendAppDisplayName -SpaRedirectUris @($frontendRedirectUri)
+$frontendRedirectUris = @($frontendRedirectUri) + @($AdditionalFrontendRedirectUris | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$frontendRedirectUris = @($frontendRedirectUris | Select-Object -Unique)
+$frontendApp = Get-OrCreateApp -DisplayName $FrontendAppDisplayName -SpaRedirectUris $frontendRedirectUris
 az ad sp create --id $frontendApp.appId 2>$null | Out-Null
 
 Write-Host 'Ensuring backend API app registration exists'

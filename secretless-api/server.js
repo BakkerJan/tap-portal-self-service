@@ -14,12 +14,15 @@ const expectedAudiences = (process.env.EXPECTED_TOKEN_AUDIENCES || '')
   .map(value => value.trim())
   .filter(Boolean);
 const requiredScope = process.env.REQUIRED_SCOPE || 'TapPortal.RequestTap';
-const allowedOrigin = process.env.ALLOWED_ORIGIN || '';
+const allowedOrigins = (process.env.ALLOWED_ORIGIN || '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
 const tapLifetimeMinutes = Number(process.env.TAP_LIFETIME_MINUTES || '60');
 
 function applyCors(req, res) {
   const origin = req.headers.origin;
-  if (origin && allowedOrigin && origin === allowedOrigin) {
+  if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');

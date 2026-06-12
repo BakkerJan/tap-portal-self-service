@@ -14,6 +14,8 @@ param(
   [string]$AppInsightsName = 'appi-tap-portal-secretless',
   [string]$FrontendAppDisplayName = 'TAP Portal Frontend',
   [string]$ApiAppDisplayName = 'TAP Portal API',
+  [string]$FrontendCustomDomain = '',
+  [string]$ApiBaseUrl = '',
 
   [switch]$ApplyConditionalAccess,
   [ValidateSet('reportOnly', 'enabled')]
@@ -41,7 +43,9 @@ Write-Host 'Starting TAP Portal deployment (recommended path)...' -ForegroundCol
   -WebAppName $WebAppName `
   -AppInsightsName $AppInsightsName `
   -FrontendAppDisplayName $FrontendAppDisplayName `
-  -ApiAppDisplayName $ApiAppDisplayName
+  -ApiAppDisplayName $ApiAppDisplayName `
+  -FrontendCustomDomain $FrontendCustomDomain `
+  -ApiBaseUrl $ApiBaseUrl
 
 if ($ApplyConditionalAccess) {
   Write-Host ''
