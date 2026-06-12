@@ -206,6 +206,20 @@
       cursor: pointer;
       color: var(--text);
     }
+    .copy-status {
+      min-height: 18px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    .copy-status.success {
+      color: var(--green);
+      font-weight: 600;
+    }
+    .copy-status.error {
+      color: var(--red);
+      font-weight: 600;
+    }
     .tap-meta { font-size: 13px; color: var(--text-sub); margin-bottom: 16px; }
     .countdown { font-size: 22px; font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
     .countdown.urgent { color: var(--red); }
@@ -289,6 +303,7 @@
             <div class="tap-label">Your Temporary Access Pass</div>
             <div id="tapCode">--------</div>
             <button class="btn-copy" id="copyBtn" type="button">Copy to clipboard</button>
+            <div class="copy-status" id="copyStatus" aria-live="polite"></div>
           </div>
           <div class="tap-meta">
             Expires in: <span class="countdown" id="tapCountdown">--:--</span>
@@ -339,6 +354,7 @@
   let activeAccount = null;
   let tapExpiry = null;
   let countdownInterval = null;
+  let copyStatusTimeout = null;
 
   function validateConfig() {
     const missing = [];
@@ -446,7 +462,26 @@
   document.getElementById('retryButton').addEventListener('click', () => showState(activeAccount ? 'stateForm' : 'stateSignin'));
   document.getElementById('requestAnotherButton').addEventListener('click', () => showState('stateForm'));
   document.getElementById('copyBtn').addEventListener('click', async () => {
-    await navigator.clipboard.writeText(document.getElementById('tapCode').textContent);
+    const copyStatus = document.getElementById('copyStatus');
+    if (copyStatusTimeout) {
+      clearTimeout(copyStatusTimeout);
+      copyStatusTimeout = null;
+    }
+
+    try {
+      await navigator.clipboard.writeText(document.getElementById('tapCode').textContent);
+      copyStatus.textContent = 'Copied to clipboard';
+      copyStatus.className = 'copy-status success';
+    } catch (_error) {
+      copyStatus.textContent = 'Copy failed. Please copy manually.';
+      copyStatus.className = 'copy-status error';
+    }
+
+    copyStatusTimeout = setTimeout(() => {
+      copyStatus.textContent = '';
+      copyStatus.className = 'copy-status';
+      copyStatusTimeout = null;
+    }, 2500);
   });
 
   document.getElementById('tapForm').addEventListener('submit', async (event) => {
