@@ -104,6 +104,7 @@ az webapp config appsettings set `
   --settings `
     EXPECTED_TENANT_ID=$TenantId `
     EXPECTED_TOKEN_AUDIENCES="$($entra.apiAppId),$($entra.apiAudience)" `
+    EXPECTED_CLIENT_APP_IDS=$($entra.frontendClientId) `
     REQUIRED_SCOPE=TapPortal.RequestTap `
     ALLOWED_ORIGIN=$allowedOriginSetting | Out-Null
 

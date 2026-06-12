@@ -18,6 +18,10 @@ const allowedOrigins = (process.env.ALLOWED_ORIGIN || '')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
+const expectedClientAppIds = (process.env.EXPECTED_CLIENT_APP_IDS || '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
 const tapLifetimeMinutes = Number(process.env.TAP_LIFETIME_MINUTES || '60');
 
 function applyCors(req, res) {
@@ -84,6 +88,15 @@ async function validateAccessToken(req) {
     const error = new Error('The signed-in token is missing the required API scope.');
     error.status = 403;
     throw error;
+  }
+
+  if (expectedClientAppIds.length > 0) {
+    const callerAppId = String(payload.azp || payload.appid || '').trim();
+    if (!callerAppId || !expectedClientAppIds.includes(callerAppId)) {
+      const error = new Error('The access token caller application is not allowed for this API.');
+      error.status = 403;
+      throw error;
+    }
   }
 
   const objectId = payload.oid || payload.sub;
