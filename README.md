@@ -210,7 +210,7 @@ Your account must have the following at minimum:
 |---|---|
 | **Contributor** on the target subscription or resource group | To create resource group, App Service, Static Web App |
 | **Application Administrator** or **Cloud Application Administrator** in Entra | To create app registrations and grant API permissions |
-| **Privileged Role Administrator** in Entra | To grant the managed identity the Graph application permission (app role assignment) |
+| **Privileged Role Administrator** in Entra | To grant the managed identity the `UserAuthMethod-TAP.ReadWrite.All` app role |
 | **Conditional Access Administrator** in Entra | Optional: to create the Conditional Access policy |
 
 > **Note:** If you lack one of these roles, the script will fail at that specific step. You can run the infra steps separately and have a colleague with the required role run the Entra steps.
@@ -424,7 +424,7 @@ The App Service web app has a **system-assigned managed identity** enabled. The 
 
 | Permission | Type | Purpose |
 |---|---|---|
-| `UserAuthenticationMethod.ReadWrite.All` | Application | Create TAPs for any user via Graph |
+| `UserAuthMethod-TAP.ReadWrite.All` | Application | Create TAPs for any user — TAP-only, no access to other auth methods |
 
 > **Important:** This is an application permission (not delegated). The managed identity acts on behalf of the application, not a specific user. The `server.js` code enforces that the TAP is always created for the user whose `oid` appears in the validated bearer token.
 

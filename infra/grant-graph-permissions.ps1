@@ -2,19 +2,21 @@
 
 <#
 .SYNOPSIS
-  Grants the Logic App Managed Identity the Graph API permission required
+  Grants the App Service Managed Identity the Graph API permission required
   to create Temporary Access Passes on behalf of any user.
 
 .DESCRIPTION
-  Assigns the Application permission "UserAuthenticationMethod.ReadWrite.All"
-  to the Logic App's System-Assigned Managed Identity.
+  Assigns the Application permission "UserAuthMethod-TAP.ReadWrite.All"
+  to the managed identity. This is the least-privileged permission that
+  allows creating Temporary Access Passes without granting access to any
+  other authentication method (passwords, FIDO2, phone, etc.).
 
   Run this ONCE after deploying main.bicep.
 
 .PARAMETER ManagedIdentityPrincipalId
-  The Object ID of the Logic App's Managed Identity.
-  Shown as 'managedIdentityPrincipalId' in the Bicep deployment output.
-  Can also be found: Azure Portal → Logic App → Identity → Object (principal) ID
+  The Object ID of the App Service's Managed Identity.
+  Shown as 'webAppPrincipalId' in the Bicep deployment output.
+  Can also be found: Azure Portal → App Service → Identity → Object (principal) ID
 
 .PARAMETER TenantId
   Your Entra ID tenant ID.
@@ -42,13 +44,13 @@ Connect-MgGraph -TenantId $TenantId -Scopes "AppRoleAssignment.ReadWrite.All", "
 $graphSp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
 Write-Host "Found Microsoft Graph SP: $($graphSp.Id)"
 
-# Find the UserAuthenticationMethod.ReadWrite.All app role
+# Find the UserAuthMethod-TAP.ReadWrite.All app role (TAP-only, least privilege)
 $appRole = $graphSp.AppRoles | Where-Object {
-    $_.Value -eq 'UserAuthenticationMethod.ReadWrite.All' -and $_.AllowedMemberTypes -contains 'Application'
+    $_.Value -eq 'UserAuthMethod-TAP.ReadWrite.All' -and $_.AllowedMemberTypes -contains 'Application'
 }
 
 if (-not $appRole) {
-    throw "Could not find the UserAuthenticationMethod.ReadWrite.All app role on Microsoft Graph."
+    throw "Could not find the UserAuthMethod-TAP.ReadWrite.All app role on Microsoft Graph."
 }
 
 Write-Host "Found app role: $($appRole.Value) ($($appRole.Id))"
@@ -67,8 +69,8 @@ if ($existing) {
     }
 
     New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ManagedIdentityPrincipalId -BodyParameter $params | Out-Null
-    Write-Host "Successfully granted UserAuthenticationMethod.ReadWrite.All" -ForegroundColor Green
+    Write-Host "Successfully granted UserAuthMethod-TAP.ReadWrite.All" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "Done. The Logic App Managed Identity can now create Temporary Access Passes." -ForegroundColor Green
+Write-Host "Done. The managed identity can now create Temporary Access Passes." -ForegroundColor Green
