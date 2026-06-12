@@ -9,7 +9,11 @@
     "Or create manually in Entra ID:",
     "  https://entra.microsoft.com → Protection → Conditional Access → + New policy",
     "",
-    "Replace ALL values marked REPLACE_WITH_* before applying."
+    "Replace ALL values marked REPLACE_WITH_* before applying.",
+    "",
+    "NOTE: REPLACE_WITH_APP_CLIENT_ID is automatically replaced by deploy.ps1",
+    "when using the -ApplyConditionalAccess switch. Manual imports require",
+    "manually replacing this placeholder with your frontend app's client ID."
   ],
   "_placeholders": {
     "REPLACE_WITH_APP_CLIENT_ID": "Client ID of the App Registration used by Azure Static Web Apps",
