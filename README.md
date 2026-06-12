@@ -272,8 +272,8 @@ TAP must be enabled in your Entra tenant before the portal can create any passes
 Clone or download the repository to your local machine:
 
 ```powershell
-git clone https://github.com/BakkerJan/tap-portal-private.git
-cd tap-portal-private
+git clone https://github.com/BakkerJan/tap-portal-advanced.git
+cd tap-portal-advanced
 ```
 
 Or download the ZIP from GitHub:
