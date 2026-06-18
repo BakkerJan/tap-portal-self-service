@@ -413,6 +413,24 @@
     await msalInstance.logoutRedirect({ account: activeAccount || undefined });
   }
 
+  function requiresInteractiveTokenAcquisition(error) {
+    if (!error) {
+      return false;
+    }
+
+    const errorCode = String(error.errorCode || '').toLowerCase();
+    const message = String(error.message || '').toLowerCase();
+    if (error instanceof msal.InteractionRequiredAuthError) {
+      return true;
+    }
+
+    return errorCode === 'interaction_required'
+      || errorCode === 'login_required'
+      || errorCode === 'consent_required'
+      || errorCode === 'monitor_window_timeout'
+      || message.includes('monitor_window_timeout');
+  }
+
   async function acquireApiToken() {
     ensureMsalReady();
     const account = msalInstance.getActiveAccount() || activeAccount;
@@ -424,8 +442,8 @@
       const result = await msalInstance.acquireTokenSilent({ ...tokenRequest, account });
       return result.accessToken;
     } catch (error) {
-      if (error instanceof msal.InteractionRequiredAuthError || error.errorCode === 'interaction_required') {
-        await msalInstance.acquireTokenRedirect(tokenRequest);
+      if (requiresInteractiveTokenAcquisition(error)) {
+        await msalInstance.acquireTokenRedirect({ ...tokenRequest, account });
         return null;
       }
 
